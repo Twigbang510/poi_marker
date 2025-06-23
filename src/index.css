@@ -15,8 +15,8 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
 }
-
 /*LEAFLET STYLE*/
 .leaflet-container .leaflet-control-attribution {
   display: none;
@@ -79,12 +79,81 @@
   }
 }
 
+/* MAP CONTAINER STYLES */
+#admin-map,
+#user-map {
+  width: 100% !important;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0.5rem;
+  z-index: 1;
+}
+
+/* Custom marker styles */
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-marker div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.875rem;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Leaflet popup improvements */
+.leaflet-popup-content-wrapper {
+  border-radius: 0.5rem;
+  background-color: #fff;
+  color: #000;
+  border: 1px solid #e0e0e0;
+  padding: 10px;
+  border-radius: 0.5rem;
+  width: 10rem !important;
+  text-align: center;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.leaflet-popup-content {
+  margin: 0.5rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.leaflet-popup-content h3 {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.leaflet-popup-content p {
+  margin: 0.125rem 0;
+  color: #666;
+}
+
 body {
   margin: 0;
   display: flex;
+  flex-direction: column;
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  width: 100%;
+}
+
+#root{
+  width: 100%;
 }
 
 h1 {

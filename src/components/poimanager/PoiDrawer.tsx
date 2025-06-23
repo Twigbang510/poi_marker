@@ -8,6 +8,8 @@ import {
   DrawerTrigger,
   DrawerClose,
 } from "@/components/ui/drawer";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { List, X } from "lucide-react";
 import { Vertex } from "./types";
 import { useState } from "react";
@@ -30,23 +32,13 @@ export function PoiDrawer({
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <button
-          style={{
-            marginRight: "5px",
-            background: "#f0f0f0",
-            padding: 6,
-            borderRadius: 4,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <List size={16} /> View POIs
-        </button>
+        <Button variant="outline" className="flex items-center gap-1">
+          <List size={16} /> Danh sách POI
+        </Button>
       </DrawerTrigger>
       <DrawerContent className="z-[100] max-h-screen">
         <DrawerHeader className="flex justify-between items-center">
-          <DrawerTitle>Saved Points of Interest</DrawerTitle>
+          <DrawerTitle>Danh sách các điểm quan tâm</DrawerTitle>
           <DrawerClose asChild>
             <Button variant="ghost" size="icon">
               <X size={20} />
@@ -56,20 +48,18 @@ export function PoiDrawer({
 
         {vertices.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
-            No POIs added yet. Add a POI at your current location.
+            Chưa có POI nào. Hãy thêm POI tại vị trí hiện tại của bạn.
           </div>
         ) : (
           <div className="p-4 space-y-2 overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
             {vertices.map((poi) => (
-              <div
-                key={poi.id}
-                className="p-3 border rounded-md flex justify-between items-center"
-              >
+              <Card key={poi.id} className="p-3 flex justify-between items-center">
                 <div>
-                  <div className="font-medium">{poi.name}</div>
+                  <div className="font-medium flex items-center gap-2">
+                    {poi.name} <Badge variant="secondary">{poi.id}</Badge>
+                  </div>
                   <div className="text-sm text-gray-500">
-                    ID: {poi.id} • Lat: {poi.lat.toFixed(6)} • Lng:{" "}
-                    {poi.lng.toFixed(6)}
+                    Lat: {poi.lat.toFixed(6)} • Lng: {poi.lng.toFixed(6)}
                   </div>
                 </div>
                 <Button
@@ -79,16 +69,16 @@ export function PoiDrawer({
                 >
                   <X size={16} />
                 </Button>
-              </div>
+              </Card>
             ))}
           </div>
         )}
 
         <DrawerFooter>
           <Button variant="outline" onClick={onClearAll}>
-            Clear All POIs
+            Xóa tất cả POI
           </Button>
-          <Button onClick={onSendPois}>Send POIs to server</Button>
+          <Button onClick={onSendPois}>Gửi POI lên server</Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

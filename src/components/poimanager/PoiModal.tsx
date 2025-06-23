@@ -31,8 +31,8 @@ export function PoiModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="z-[100]">
         <DialogHeader>
-          <DialogTitle>Add New Point of Interest</DialogTitle>
-          <DialogDescription>Enter a name for this location</DialogDescription>
+          <DialogTitle>Thêm điểm quan tâm mới</DialogTitle>
+          <DialogDescription>Nhập tên cho vị trí này</DialogDescription>
         </DialogHeader>
 
         {poiToAdd && (
@@ -53,18 +53,18 @@ export function PoiModal({
             </div>
 
             <div>
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium">Tên POI</label>
               <Input
                 value={newPoiName}
                 onChange={(e) => setNewPoiName(e.target.value)}
-                placeholder="Enter POI name"
+                placeholder="Nhập tên POI"
                 autoFocus
               />
             </div>
           </div>
         )}
         <DialogFooter>
-          <Button onClick={onConfirm}>Add POI</Button>
+          <Button onClick={onConfirm}>Thêm POI</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,6 +1,7 @@
 import { MapPin, Navigation } from "lucide-react";
 import { PoiDrawer } from "./PoiDrawer";
 import { Vertex } from "./types";
+import { Button } from "@/components/ui/button";
 
 interface MapControlProps {
   onAddPoi: () => void;
@@ -18,6 +19,7 @@ export function MapControl({
   onRemovePoi,
   onClearAll,
   onSendPois,
+  isSending,
   onFocusLocation,
 }: MapControlProps) {
   return (
@@ -40,36 +42,21 @@ export function MapControl({
           gap: 8,
         }}
       >
-        <button
+        <Button
           onClick={onAddPoi}
-          style={{
-            marginRight: "5px",
-            background: "lightblue",
-            padding: 6,
-            borderRadius: 4,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
+          variant="secondary"
+          className="flex items-center gap-1"
         >
-          <MapPin size={16} /> Add POI
-        </button>
+          <MapPin size={16} /> Thêm POI
+        </Button>
 
-        <button
+        <Button
           onClick={onFocusLocation}
-          style={{
-            marginRight: "5px",
-            background: "#4CAF50",
-            color: "white",
-            padding: 6,
-            borderRadius: 4,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
+          variant="default"
+          className="flex items-center gap-1"
         >
-          <Navigation size={16} /> My Location
-        </button>
+          <Navigation size={16} /> Vị trí của tôi
+        </Button>
 
         <PoiDrawer
           vertices={vertices}
