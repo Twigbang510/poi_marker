@@ -4,7 +4,7 @@
   "installCommand": "yarn install",
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/:path*",
       "headers": [
         {
           "key": "Cache-Control",
@@ -13,7 +13,70 @@
       ]
     },
     {
-      "source": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))",
+      "source": "/:path*.js",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/:path*.css",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/:path*.png",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/:path*.jpg",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/:path*.svg",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/:path*.ico",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/:path*.woff",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/:path*.woff2",
       "headers": [
         {
           "key": "Cache-Control", 
@@ -24,7 +87,7 @@
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
