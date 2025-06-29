@@ -14,10 +14,7 @@ export default function SocketTest() {
   const [testMessage, setTestMessage] = useState("");
   const [userId] = useState(() => `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 
-    (import.meta.env.MODE === "production" 
-      ? "https://poi-marker-socket.onrender.com" 
-      : "http://localhost:3001");
+  const socketUrl = "https://poi-marker-socket.onrender.com";
 
   useEffect(() => {
     const socket = getSocket();
