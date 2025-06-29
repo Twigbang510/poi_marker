@@ -28,11 +28,6 @@ interface LocationData {
 const DEFAULT_LOCATION: [number, number] = [16.099636, 108.277578];
 const DEFAULT_ZOOM = 15;
 const TRACKING_ZOOM = 17;
-const MAPBOX_TILE_URL =
-  `https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}`;
-const MAPBOX_ATTRIBUTION =
-  '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-const MAPBOX_ID = "mapbox/streets-v11";
 
 export default function UserLocationTracker() {
   const { updateUserLocation } = useLocationStore();
@@ -80,12 +75,10 @@ export default function UserLocationTracker() {
 
       try {
         const newMap = L.map("user-map").setView(DEFAULT_LOCATION, DEFAULT_ZOOM);
-        L.tileLayer(MAPBOX_TILE_URL, {
-          attribution: MAPBOX_ATTRIBUTION,
-          tileSize: 512,
-          zoomOffset: -1,
-          id: MAPBOX_ID,
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap contributors",
         }).addTo(newMap);
+        console.log("User map initialized with OpenStreetMap tiles");
         setMap(newMap);
         setMapInitialized(true);
         setTimeout(() => {
