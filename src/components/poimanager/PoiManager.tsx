@@ -30,7 +30,6 @@ export default function PoiManager() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newPoiName, setNewPoiName] = useState("");
   const [poiToAdd, setPoiToAdd] = useState<PoiToAdd | null>(null);
-  const [isSending, setIsSending] = useState(false);
   // @ts-expect-error default
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [isHavePoi, setIsHavePoi] = useState(false)
@@ -188,7 +187,6 @@ export default function PoiManager() {
       return;
     }
 
-    setIsSending(true);
     try {
       const poisToSend = vertices.map((vertex) => ({
         name: vertex.name,
@@ -204,8 +202,6 @@ export default function PoiManager() {
     } catch (error) {
       console.error("Error sending POIs:", error);
       toast.error("Failed to send POIs. Please try again.");
-    } finally {
-      setIsSending(false);
     }
   };
 
@@ -255,7 +251,6 @@ export default function PoiManager() {
         onRemovePoi={removePOI}
         onClearAll={clearAll}
         onSendPois={handleSendPOIs}
-        isSending={isSending}
         onFocusLocation={focusOnUserLocation}
       />
 

@@ -1,7 +1,6 @@
 import { useSessionStore } from "@/store/useSessionStore";
 import { Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
-import Navigation from "./Navigation";
 
 export default function RootLayout() {
   const { startAuthCheck } = useSessionStore();

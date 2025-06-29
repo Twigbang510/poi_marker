@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Clock, Wifi, WifiOff, Edit2, Locate } from "lucide-react";
+import { MapPin, Clock, Edit2, Locate } from "lucide-react";
 import { toast } from "sonner";
-import { useLocationStore, UserLocation } from "@/store/useLocationStore";
+import { useLocationStore } from "@/store/useLocationStore";
 import { getSocket, disconnectSocket } from "@/lib/socket";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -37,16 +35,14 @@ const MAPBOX_ATTRIBUTION =
 const MAPBOX_ID = "mapbox/streets-v11";
 
 export default function UserLocationTracker() {
-  const { addUser, updateUserLocation } = useLocationStore();
+  const { updateUserLocation } = useLocationStore();
   const [userName, setUserName] = useState("");
   const [isNameModalOpen, setIsNameModalOpen] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [isTracking, setIsTracking] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
-  const [isOnline, setIsOnline] = useState(true);
   const [map, setMap] = useState<L.Map | null>(null);
   const [userMarker, setUserMarker] = useState<L.Marker | null>(null);
-  const [watchId, setWatchId] = useState<number | null>(null);
+  const [watchId] = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [userId] = useState(() => `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [mapInitialized, setMapInitialized] = useState(false);
@@ -111,11 +107,9 @@ export default function UserLocationTracker() {
   // Check online status
   useEffect(() => {
     const handleOnline = () => {
-      setIsOnline(true);
       toast.success("Reconnected");
     };
     const handleOffline = () => {
-      setIsOnline(false);
       toast.error("Disconnected");
     };
     window.addEventListener("online", handleOnline);
@@ -243,87 +237,7 @@ export default function UserLocationTracker() {
     }
   };
 
-  const startTracking = async () => {
-    if (!userName.trim()) {
-      toast.error("Please enter your name");
-      return;
-    }
-    if (!currentLocation) {
-      toast.error("Cannot get current location");
-      return;
-    }
-    // Add user lần đầu
-    const userData: UserLocation = {
-      id: userId,
-      name: userName,
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
-      accuracy: currentLocation.accuracy,
-      lastUpdate: new Date(),
-      isOnline: true,
-    };
-    addUser(userData);
-    // Theo dõi liên tục
-    const id = navigator.geolocation.watchPosition(
-      (position) => {
-        const newLocation: LocationData = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: new Date(position.timestamp),
-        };
-        setCurrentLocation(newLocation);
-        setLastUpdate(new Date());
-        if (mapInitialized && map) {
-          updateMapMarker(newLocation, TRACKING_ZOOM);
-        }
-        updateUserLocation(userId, {
-          latitude: newLocation.latitude,
-          longitude: newLocation.longitude,
-          accuracy: newLocation.accuracy,
-          lastUpdate: new Date(),
-          isOnline: true,
-        });
-        // Gửi websocket mỗi lần vị trí đổi
-        const socket = getSocket();
-        socket.emit("location:update", {
-          id: userId,
-          name: userName,
-          latitude: newLocation.latitude,
-          longitude: newLocation.longitude,
-          accuracy: newLocation.accuracy,
-          lastUpdate: new Date(),
-          isOnline: true,
-        });
-      },
-      (error) => {
-        console.error("Location tracking error:", error);
-        toast.error("Error tracking location");
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 5000,
-      }
-    );
-    setWatchId(id);
-    setIsTracking(true);
-    toast.success("Start tracking location");
-  };
 
-  // Stop location tracking
-  const stopTracking = () => {
-    if (watchId) {
-      navigator.geolocation.clearWatch(watchId);
-      setWatchId(null);
-    }
-    setIsTracking(false);
-    updateUserLocation(userId, {
-      isOnline: false,
-      lastUpdate: new Date(),
-    });
-    toast.info("Stopped tracking location");
-  };
 
   // Cleanup on unmount
   useEffect(() => {
@@ -353,7 +267,7 @@ export default function UserLocationTracker() {
     let interval: NodeJS.Timeout | null = null;
     const socket = getSocket();
 
-    if (isTracking && userName && currentLocation) {
+    if (userName && currentLocation) {
       // Gửi vị trí lần đầu
       socket.emit("location:update", {
         id: userId,
@@ -385,7 +299,7 @@ export default function UserLocationTracker() {
       if (interval) clearInterval(interval);
       disconnectSocket();
     };
-  }, [isTracking, userName, userId, currentLocation]);
+  }, [userName, userId, currentLocation]);
 
   // Thêm hàm focus về marker của bản thân
   const focusOnMe = () => {

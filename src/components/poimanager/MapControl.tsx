@@ -9,7 +9,6 @@ interface MapControlProps {
   onRemovePoi: (id: string) => void;
   onClearAll: () => void;
   onSendPois: () => Promise<void>;
-  isSending: boolean;
   onFocusLocation: () => void;
 }
 
@@ -19,7 +18,6 @@ export function MapControl({
   onRemovePoi,
   onClearAll,
   onSendPois,
-  isSending,
   onFocusLocation,
 }: MapControlProps) {
   return (
