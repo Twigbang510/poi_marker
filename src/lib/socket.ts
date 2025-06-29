@@ -4,10 +4,7 @@ let socket: Socket | null = null;
 
 export function getSocket() {
   if (!socket) {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 
-      (import.meta.env.MODE === "production" 
-        ? "https://poi-marker-socket.onrender.com" 
-        : "http://localhost:3001");
+    const socketUrl = import.meta.env.VITE_SOCKET_URL
     
     socket = io(socketUrl, { 
       transports: ["websocket", "polling"],
