@@ -4,9 +4,18 @@ let socket: Socket | null = null;
 
 export function getSocket() {
   if (!socket) {
-    socket = io("http://localhost:3001", { transports: ["websocket"] });
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 
+      (import.meta.env.MODE === "production" 
+        ? "https://poi-marker-socket.onrender.com" 
+        : "http://localhost:3001");
+    
+    socket = io(socketUrl, { 
+      transports: ["websocket", "polling"],
+      timeout: 20000,
+      forceNew: true
+    });
   }
-  console.log("socket", socket);
+  console.log("socket connecting to:", socket);
   return socket;
 }
 
