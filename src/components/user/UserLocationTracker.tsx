@@ -7,8 +7,12 @@ import { Input } from "@/components/ui/input";
 import { MapPin, Clock, Edit2, Locate } from "lucide-react";
 import { toast } from "sonner";
 import { useLocationStore } from "@/store/useLocationStore";
-import { getSocket, disconnectSocket } from "@/lib/socket";
+import { getSocket } from "@/lib/socket";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import useMapStore from "@/store/useMapStore";
+import { findCurrentPOIs } from "@/lib/geo";
+import { usePoiQuery } from "@/hooks/api-hooks/use-poi";
+import useGlobalStore from "@/store/useGlobalStore";
 
 // Fix Leaflet icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -31,6 +35,11 @@ const TRACKING_ZOOM = 17;
 
 export default function UserLocationTracker() {
   const { updateUserLocation } = useLocationStore();
+  const { currentPOIs, setUserLocation, setCurrentPOIs } = useMapStore();
+  const { selectedLanguageCode } = useGlobalStore();
+  
+  // Get POI data for real-time discovery
+  const { data: poiData } = usePoiQuery(selectedLanguageCode, "");
   const [userName, setUserName] = useState("");
   const [isNameModalOpen, setIsNameModalOpen] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -97,6 +106,81 @@ export default function UserLocationTracker() {
   }, [mapInitialized, isNameModalOpen]);
 
 
+  // Real-time location tracking + POI discovery + Socket broadcasting
+  useEffect(() => {
+    if (!navigator.geolocation || isNameModalOpen || !userName) return;
+
+    let watchId: number | null = null;
+    const socket = getSocket();
+
+    const startWatching = () => {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const locationData: LocationData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: new Date(position.timestamp),
+          };
+
+          // Update current location state
+          setCurrentLocation(locationData);
+          setLastUpdate(new Date());
+
+          // Update MapStore location for POI discovery
+          const newLocation = {
+            lat: locationData.latitude,
+            lng: locationData.longitude,
+          };
+          setUserLocation(newLocation);
+
+          // Update current POIs whenever location changes
+          if (poiData) {
+            const currentPOIs = findCurrentPOIs(
+              newLocation.lat,
+              newLocation.lng,
+              poiData,
+            );
+            setCurrentPOIs(currentPOIs);
+          }
+          if (userName.trim()) {
+            socket.emit("location:update", {
+              id: userId,
+              name: userName,
+              latitude: locationData.latitude,
+              longitude: locationData.longitude,
+              accuracy: locationData.accuracy,
+              lastUpdate: new Date(),
+              isOnline: true,
+            });
+          }
+
+          // Update map marker if map is ready
+          if (mapInitialized && map) {
+            updateMapMarker(locationData);
+          }
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          toast.error(`Location error: ${error.message}`);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000,
+        }
+      );
+    };
+
+    startWatching();
+
+    return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [isNameModalOpen, poiData, mapInitialized, map, userName, userId]);
+
   // Check online status
   useEffect(() => {
     const handleOnline = () => {
@@ -113,7 +197,7 @@ export default function UserLocationTracker() {
     };
   }, []);
 
-  // Hàm lấy vị trí hiện tại (1 lần)
+  // Hàm lấy vị trí hiện tại (1 lần) + Real-time POI discovery
   const getCurrentLocation = (): Promise<LocationData> => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -128,6 +212,24 @@ export default function UserLocationTracker() {
             accuracy: position.coords.accuracy,
             timestamp: new Date(position.timestamp),
           };
+          
+          // Update MapStore location for POI discovery
+          const newLocation = {
+            lat: locationData.latitude,
+            lng: locationData.longitude,
+          };
+          setUserLocation(newLocation);
+          
+          // Update current POIs whenever location changes
+          if (poiData) {
+            const currentPOIs = findCurrentPOIs(
+              newLocation.lat,
+              newLocation.lng,
+              poiData,
+            );
+            setCurrentPOIs(currentPOIs);
+          }
+          
           resolve(locationData);
         },
         (error) => {
@@ -256,41 +358,30 @@ export default function UserLocationTracker() {
     return `${Math.floor(minutes / 60)} hours ago`;
   };
 
+  // 🔄 Heartbeat backup - gửi location mỗi 10s để đảm bảo không mất connection  
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    if (!userName || !currentLocation) return;
+    
+    let heartbeatInterval: NodeJS.Timeout | null = null;
     const socket = getSocket();
 
-    if (userName && currentLocation) {
-      // Gửi vị trí lần đầu
-      socket.emit("location:update", {
-        id: userId,
-        name: userName,
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-        accuracy: currentLocation.accuracy,
-        lastUpdate: new Date(),
-        isOnline: true,
-      });
-
-      // Gửi vị trí mỗi 3s
-      interval = setInterval(() => {
-        if (currentLocation) {
-          socket.emit("location:update", {
-            id: userId,
-            name: userName,
-            latitude: currentLocation.latitude,
-            longitude: currentLocation.longitude,
-            accuracy: currentLocation.accuracy,
-            lastUpdate: new Date(),
-            isOnline: true,
-          });
-        }
-      }, 3000);
-    }
+    // Heartbeat mỗi 10s (chậm hơn để không conflict với real-time)
+    heartbeatInterval = setInterval(() => {
+      if (currentLocation && userName.trim()) {
+        socket.emit("location:update", {
+          id: userId,
+          name: userName,
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          accuracy: currentLocation.accuracy,
+          lastUpdate: new Date(),
+          isOnline: true,
+        });
+      }
+    }, 10000); // 10 seconds heartbeat
 
     return () => {
-      if (interval) clearInterval(interval);
-      disconnectSocket();
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
     };
   }, [userName, userId, currentLocation]);
 
@@ -415,8 +506,48 @@ export default function UserLocationTracker() {
                   <Clock className="h-4 w-4" />
                   <span>{lastUpdate ? `Updated: ${formatTimeAgo(lastUpdate)}` : "--"}</span>
                 </div>
+                
+                {/* Real-time tracking indicator */}
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="text-green-600 font-medium">Live Tracking</span>
+                </div>
               </CardContent>
             </Card>
+            
+            {/* POI Discovery */}
+            {currentPOIs && currentPOIs.length > 0 && (
+              <Card className="w-full">
+                <CardContent className="py-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="h-5 w-5 text-blue-600" />
+                    <h3 className="font-semibold text-lg">Nearby POIs</h3>
+                    <span className="text-sm text-gray-500">({currentPOIs.length})</span>
+                  </div>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {currentPOIs.slice(0, 3).map((poi, index) => (
+                      <div key={poi.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm">
+                          {index + 1}
+                        </div>
+                                                 <div className="flex-1 min-w-0">
+                           <p className="font-medium text-sm truncate">{poi.localizedData.name}</p>
+                           <p className="text-xs text-gray-500 truncate">{poi.localizedData.description.text}</p>
+                         </div>
+                        <div className="text-xs text-gray-400">
+                          ~{Math.round(poi.distance || 0)}m
+                        </div>
+                      </div>
+                    ))}
+                    {currentPOIs.length > 3 && (
+                      <div className="text-center text-sm text-gray-500 py-1">
+                        +{currentPOIs.length - 3} more nearby...
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
         {/* Map Fullscreen */}

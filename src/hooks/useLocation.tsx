@@ -1,9 +1,15 @@
+import { findCurrentPOIs } from "@/lib/geo";
 import useMapStore from "@/store/useMapStore";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { usePoiQuery } from "./api-hooks/use-poi";
+import useGlobalStore from "@/store/useGlobalStore";
 
 export const useLocation = () => {
-  const { setUserLocation, setError } = useMapStore();
+  const { setUserLocation, setError, setCurrentPOIs } = useMapStore();
+  const { selectedLanguageCode } = useGlobalStore();
+
+  const { data: poiData } = usePoiQuery(selectedLanguageCode, "");
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -27,10 +33,22 @@ export const useLocation = () => {
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        setUserLocation({
+        const newLocation = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-        });
+        };
+
+        setUserLocation(newLocation);
+
+        // 🚀 REAL-TIME POI DISCOVERY: Update current POIs whenever location changes
+        if (poiData) {
+          const current = findCurrentPOIs(
+            newLocation.lat,
+            newLocation.lng,
+            poiData,
+          );
+          setCurrentPOIs(current);
+        }
       },
       (err) => {
         let errorMessage = "Cannot get your location";
@@ -53,10 +71,10 @@ export const useLocation = () => {
       {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: 30000,
+        timeout: 10000,
       },
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [poiData, setUserLocation, setError, setCurrentPOIs]);
 };
