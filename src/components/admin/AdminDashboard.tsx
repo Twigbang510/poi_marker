@@ -136,23 +136,53 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const socket = getSocket();
+    console.log("🔵 Admin socket connecting...");
+    console.log("🔵 Admin socket connected:", socket.connected);
+    console.log("🔵 Admin socket ID:", socket.id);
 
-    socket.on("location:broadcast", (data) => {
+    // Listen for location updates
+    const handleLocationUpdate = (data: any) => {
+      console.log("🔴 Admin received location data:", data);
+      console.log("🔴 Current users count:", useLocationStore.getState().users.length);
+      
       // Get current users from store
-      const users = useLocationStore.getState().users;
-      const idx = users.findIndex((u) => u.id === data.id);
-      let usersNew;
-      if (idx !== -1) {
-        usersNew = [...users];
-        usersNew[idx] = { ...usersNew[idx], ...data, lastUpdate: new Date(data.lastUpdate) };
+      const currentUsers = useLocationStore.getState().users;
+      const userIndex = currentUsers.findIndex((u) => u.id === data.id);
+      
+      let updatedUsers;
+      if (userIndex !== -1) {
+        // Update existing user
+        updatedUsers = [...currentUsers];
+        updatedUsers[userIndex] = { 
+          ...updatedUsers[userIndex], 
+          ...data, 
+          lastUpdate: new Date(data.lastUpdate || new Date()) 
+        };
+        console.log("🔄 Updated existing user:", data.name);
       } else {
-        usersNew = [...users, { ...data, lastUpdate: new Date(data.lastUpdate) }];
+        // Add new user
+        updatedUsers = [...currentUsers, { 
+          ...data, 
+          lastUpdate: new Date(data.lastUpdate || new Date()) 
+        }];
+        console.log("➕ Added new user:", data.name);
       }
-      setUsers(usersNew);
-    });
+      
+      setUsers(updatedUsers);
+      console.log("✅ Users state updated, new count:", updatedUsers.length);
+    };
+
+    // Listen to ALL possible event names for compatibility
+    socket.on("location:broadcast", handleLocationUpdate);
+    socket.on("location:update", handleLocationUpdate);
+    socket.on("locationUpdate", handleLocationUpdate);
+    socket.on("user:location", handleLocationUpdate);
 
     return () => {
-      socket.off("location:broadcast");
+      socket.off("location:broadcast", handleLocationUpdate);
+      socket.off("location:update", handleLocationUpdate);
+      socket.off("locationUpdate", handleLocationUpdate);
+      socket.off("user:location", handleLocationUpdate);
       disconnectSocket();
     };
   }, [setUsers]);

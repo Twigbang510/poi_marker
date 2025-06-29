@@ -144,7 +144,7 @@ export default function UserLocationTracker() {
             setCurrentPOIs(currentPOIs);
           }
           if (userName.trim()) {
-            socket.emit("location:update", {
+            const locationUpdate = {
               id: userId,
               name: userName,
               latitude: locationData.latitude,
@@ -152,7 +152,16 @@ export default function UserLocationTracker() {
               accuracy: locationData.accuracy,
               lastUpdate: new Date(),
               isOnline: true,
-            });
+            };
+            
+            console.log("🟢 User emitting location:", locationUpdate);
+            console.log("🟢 Socket connected:", socket.connected);
+            console.log("🟢 Socket ID:", socket.id);
+            socket.emit("location:update", locationUpdate);
+            
+            // Also try alternative event names for server compatibility
+            socket.emit("location:broadcast", locationUpdate);
+            socket.emit("user:location", locationUpdate);
           }
 
           // Update map marker if map is ready
@@ -244,17 +253,25 @@ export default function UserLocationTracker() {
     });
   };
 
-  // Update map marker
+  // Update map marker - Fixed duplicate issue  
   const updateMapMarker = (location: LocationData, zoom?: number) => {
     if (!map || !mapInitialized) return;
     try {
+      // 🔧 IMPROVED: Remove existing user marker
       if (userMarker) {
-        userMarker.remove();
+        try {
+          if (map.hasLayer(userMarker)) {
+            map.removeLayer(userMarker);
+          }
+        } catch (e) {
+          console.log("Marker already removed");
+        }
+        setUserMarker(null);
       }
-      // Lấy chữ cái đầu tiên của tên, fallback là '?'
+      
       const firstChar = userName.trim() ? userName.trim().charAt(0).toUpperCase() : '?';
       const userIcon = L.divIcon({
-        className: "user-marker",
+        className: "user-marker", // This helps identify user markers
         html: `
           <div class="w-10 h-10 rounded-full bg-blue-500 border-4 border-white shadow-lg flex items-center justify-center text-white font-bold text-lg">
             ${firstChar}
@@ -263,20 +280,29 @@ export default function UserLocationTracker() {
         iconSize: [40, 40],
         iconAnchor: [20, 20],
       });
-      const marker = L.marker([location.latitude, location.longitude], { icon: userIcon })
-        .bindPopup(`
+      
+      const newMarker = L.marker([location.latitude, location.longitude], { 
+        icon: userIcon
+      }).bindPopup(`
           <div class="p-2">
             <h3 class="font-bold">${userName}</h3>
             <p class="text-sm text-gray-600">Current Location</p>
             <p class="text-sm text-gray-600">Accuracy: ${location.accuracy.toFixed(1)}m</p>
+            <p class="text-sm text-gray-500">Updated: ${new Date().toLocaleTimeString()}</p>
           </div>
         `);
-      marker.addTo(map);
-      setUserMarker(marker);
-      // Center map on user location
-      map.setView([location.latitude, location.longitude], zoom || DEFAULT_ZOOM);
+      
+      newMarker.addTo(map);
+      setUserMarker(newMarker);
+      
+      // Only center on first load or when requested
+      if (zoom !== undefined) {
+        map.setView([location.latitude, location.longitude], zoom);
+      }
+      
+      console.log("✅ User marker updated successfully at:", location.latitude, location.longitude);
     } catch (error) {
-      console.error("Error updating map marker:", error);
+      console.error("❌ Error updating map marker:", error);
     }
   };
 
@@ -365,10 +391,9 @@ export default function UserLocationTracker() {
     let heartbeatInterval: NodeJS.Timeout | null = null;
     const socket = getSocket();
 
-    // Heartbeat mỗi 10s (chậm hơn để không conflict với real-time)
     heartbeatInterval = setInterval(() => {
       if (currentLocation && userName.trim()) {
-        socket.emit("location:update", {
+        const heartbeatData = {
           id: userId,
           name: userName,
           latitude: currentLocation.latitude,
@@ -376,7 +401,12 @@ export default function UserLocationTracker() {
           accuracy: currentLocation.accuracy,
           lastUpdate: new Date(),
           isOnline: true,
-        });
+        };
+        
+        console.log("💓 Heartbeat ping:", heartbeatData);
+        socket.emit("location:update", heartbeatData);
+        socket.emit("location:broadcast", heartbeatData);
+        socket.emit("user:location", heartbeatData);
       }
     }, 10000); // 10 seconds heartbeat
 
@@ -395,12 +425,12 @@ export default function UserLocationTracker() {
     }
   };
 
-  // Thêm effect gửi offline khi tắt tab/app (có thể bật lại cho mobile)
+  // 📱 Mobile-friendly offline detection
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (currentLocation) {
+    const sendOfflineStatus = () => {
+      if (currentLocation && userName.trim()) {
         const socket = getSocket();
-        socket.emit("location:update", {
+        const offlineData = {
           id: userId,
           name: userName,
           latitude: currentLocation.latitude,
@@ -408,12 +438,38 @@ export default function UserLocationTracker() {
           accuracy: currentLocation.accuracy,
           lastUpdate: new Date(),
           isOnline: false,
-        });
+        };
+        
+        console.log("🔴 User going offline:", offlineData);
+        socket.emit("location:update", offlineData);
       }
     };
+
+    // Desktop: beforeunload 
+    const handleBeforeUnload = () => {
+      sendOfflineStatus();
+    };
+
+    // 📱 Mobile: visibilitychange (more reliable)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        sendOfflineStatus();
+      }
+    };
+
+    // 📱 Mobile: pagehide (iOS Safari)
+    const handlePageHide = () => {
+      sendOfflineStatus();
+    };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
     };
   }, [userId, userName, currentLocation]);
 
