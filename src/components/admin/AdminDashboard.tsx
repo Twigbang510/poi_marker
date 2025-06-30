@@ -82,6 +82,7 @@ export default function AdminDashboard() {
           .bindPopup(`
             <div class="p-2">
               <h3 class="font-bold">${user.name}</h3>
+              <p class="text-sm text-gray-600">Location: ${user.latitude.toFixed(6)}, ${user.longitude.toFixed(6)}</p>
               <p class="text-sm text-gray-600">Updated: ${user.lastUpdate.toLocaleTimeString()}</p>
               <p class="text-sm text-gray-600">Status: ${user.isOnline ? 'Online' : 'Offline'}</p>
               <p class="text-sm text-gray-600">Accuracy: ${user.accuracy}m</p>
@@ -216,9 +217,9 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <MapPin className="h-4 w-4" />
-                        <span>{
+                        <span title="Latitude, Longitude">{
                           typeof user.latitude === 'number' && typeof user.longitude === 'number'
-                            ? `${user.latitude.toFixed(4)}, ${user.longitude.toFixed(4)}`
+                            ? `${user.latitude.toFixed(6)}, ${user.longitude.toFixed(6)}`
                             : '--'
                         }</span>
                       </div>

@@ -75,33 +75,68 @@ export default function UserLocationTracker() {
 
     const initMap = () => {
       const mapContainer = document.getElementById("user-map");
-      if (!mapContainer || mapInitialized) return;
+      console.log("🔍 Looking for user-map container:", mapContainer);
+      
+      if (!mapContainer) {
+        console.log("❌ Map container not found, retrying...");
+        setTimeout(initMap, 200);
+        return;
+      }
+      
+      if (mapInitialized) {
+        console.log("✅ Map already initialized");
+        return;
+      }
 
-      if (mapContainer.offsetHeight < 100) {
-        setTimeout(initMap, 100);
+      console.log("📏 Container dimensions:", {
+        width: mapContainer.offsetWidth,
+        height: mapContainer.offsetHeight,
+        clientWidth: mapContainer.clientWidth,
+        clientHeight: mapContainer.clientHeight
+      });
+
+      if (mapContainer.offsetHeight < 100 || mapContainer.offsetWidth < 100) {
+        console.log("⏳ Container not ready, retrying...", {
+          height: mapContainer.offsetHeight,
+          width: mapContainer.offsetWidth
+        });
+        setTimeout(initMap, 200);
         return;
       }
 
       try {
+        console.log("🗺️ Initializing user map...");
         const newMap = L.map("user-map").setView(DEFAULT_LOCATION, DEFAULT_ZOOM);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "© OpenStreetMap contributors",
         }).addTo(newMap);
-        console.log("User map initialized with OpenStreetMap tiles");
+        console.log("✅ User map initialized with OpenStreetMap tiles");
+        console.log("📍 Map instance created:", newMap);
         setMap(newMap);
         setMapInitialized(true);
+        console.log("🎯 Map state updated successfully");
+        
         setTimeout(() => {
           newMap.invalidateSize();
-        }, 100);
+          console.log("🔄 Map size invalidated");
+        }, 300);
       } catch (error) {
-        console.error("Error initializing map:", error);
+        console.error("❌ Error initializing map:", error);
+        // Retry after a delay
+        setTimeout(initMap, 500);
       }
     };
 
-    initMap();
+    setTimeout(initMap, 100);
 
     return () => {
-      if (map) map.remove();
+      if (map) {
+        try {
+          map.remove();
+        } catch (e) {
+          console.log("Map cleanup: already removed");
+        }
+      }
     };
   }, [mapInitialized, isNameModalOpen]);
 
@@ -165,8 +200,17 @@ export default function UserLocationTracker() {
           }
 
           // Update map marker if map is ready
+          console.log("📍 Location received - checking if can update marker:", { 
+            mapInitialized, 
+            hasMap: !!map,
+            location: `${locationData.latitude}, ${locationData.longitude}` 
+          });
+          
           if (mapInitialized && map) {
+            console.log("✅ Calling updateMapMarker with location data");
             updateMapMarker(locationData);
+          } else {
+            console.log("❌ Cannot update marker - map not ready");
           }
         },
         (error) => {
@@ -255,7 +299,20 @@ export default function UserLocationTracker() {
 
   // Update map marker - Fixed duplicate issue  
   const updateMapMarker = (location: LocationData, zoom?: number) => {
-    if (!map || !mapInitialized) return;
+    console.log("🔄 updateMapMarker called:", { 
+      hasMap: !!map, 
+      mapInitialized, 
+      location: `${location.latitude}, ${location.longitude}` 
+    });
+    
+    if (!map || !mapInitialized) {
+      console.log("❌ Cannot update marker - map not ready:", { 
+        hasMap: !!map, 
+        mapInitialized 
+      });
+      return;
+    }
+    
     try {
       // 🔧 IMPROVED: Remove existing user marker
       if (userMarker) {
@@ -268,6 +325,18 @@ export default function UserLocationTracker() {
         }
         setUserMarker(null);
       }
+      
+      // Remove any stray user markers (cleanup safety net)
+      map.eachLayer((layer: any) => {
+        if (layer instanceof L.Marker && layer.options?.icon?.options?.className === "user-marker") {
+          try {
+            map.removeLayer(layer);
+            console.log("🧹 Cleaned up stray user marker");
+          } catch (e) {
+            console.log("Stray marker already removed");
+          }
+        }
+      });
       
       const firstChar = userName.trim() ? userName.trim().charAt(0).toUpperCase() : '?';
       const userIcon = L.divIcon({
@@ -360,19 +429,54 @@ export default function UserLocationTracker() {
 
 
 
-  // Cleanup on unmount
+  // Cleanup ONLY on unmount
   useEffect(() => {
     return () => {
+      console.log("🧹 Component unmounting - cleanup all resources");
+      
+      // Clean up geolocation watching
       if (watchId) {
         navigator.geolocation.clearWatch(watchId);
+        console.log("✅ Geolocation watch cleared");
       }
+      
+      // Update user status to offline
       updateUserLocation(userId, {
         isOnline: false,
         lastUpdate: new Date(),
       });
+      console.log("✅ User status set to offline");
     };
-    // eslint-disable-next-line
-  }, [watchId, userId, updateUserLocation]);
+  }, []);
+
+  // Separate cleanup for map instance on unmount
+  useEffect(() => {
+    return () => {
+      console.log("🗺️ Cleaning up map instance on unmount");
+      if (map) {
+        try {
+          // Clean up user marker first
+          if (userMarker && map.hasLayer(userMarker)) {
+            map.removeLayer(userMarker);
+          }
+          // Then remove map
+          map.remove();
+          console.log("✅ Map instance cleaned up");
+        } catch (e) {
+          console.log("Map cleanup: already removed");
+        }
+      }
+    };
+  }, []); // Empty deps - only run on unmount
+
+  // Debug: Track map state changes
+  useEffect(() => {
+    console.log("Map state changed:", { 
+      hasMap: !!map, 
+      mapInitialized,
+      mapInstance: map ? "Present" : "Missing" 
+    });
+  }, [map, mapInitialized]);
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
@@ -384,7 +488,7 @@ export default function UserLocationTracker() {
     return `${Math.floor(minutes / 60)} hours ago`;
   };
 
-  // 🔄 Heartbeat backup - gửi location mỗi 10s để đảm bảo không mất connection  
+  // 🔄 Heartbeat backup 
   useEffect(() => {
     if (!userName || !currentLocation) return;
     
@@ -607,11 +711,20 @@ export default function UserLocationTracker() {
           </div>
         )}
         {/* Map Fullscreen */}
-        <div className="w-full flex-grow flex flex-col px-2 pb-2" style={{ maxHeight: 'calc(100vh - 150px)', height: '100%' }}>
+        <div className="w-full flex-grow flex flex-col px-2 pb-2" style={{ minHeight: '400px', height: 'calc(100vh - 200px)' }}>
           {!isNameModalOpen && (
-            <Card className="flex flex-col flex-1 h-full">
-              <CardContent className="flex-1 h-full p-0 flex flex-col">
-                <div id="user-map" style={{ height: "100%", minHeight: 300, width: "100%", flex: 1 }} className="rounded-lg" />
+            <Card className="flex flex-col h-full w-full">
+              <CardContent className="flex-1 p-0 h-full min-h-[400px]">
+                <div 
+                  id="user-map" 
+                  className="rounded-lg w-full h-full"
+                  style={{ 
+                    minHeight: '400px', 
+                    height: '100%', 
+                    width: '100%',
+                    backgroundColor: '#f3f4f6'
+                  }} 
+                />
               </CardContent>
             </Card>
           )}

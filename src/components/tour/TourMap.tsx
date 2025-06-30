@@ -11,7 +11,6 @@ import { PoiApiTour, PoiApiTourListResponse, PoiCoordinates } from "@/types/poi.
 import tourApi from "@/lib/api/tour.api";
 import useTourStore from "@/store/useTourStore";
 import useTourPoint from "@/hooks/useTourPoint";
-import UserMarker from "../map/UserMarker";
 import { CustomMarkerIcon } from "../map/CustomMarkerIcon";
 import TourPointMarkerBeforeTour from "./TourPointMarkerBeforeTour";
 import { usePoiQuery } from "@/hooks/api-hooks/use-poi";
@@ -237,7 +236,6 @@ const TourMap = forwardRef(
          :<Polyline positions={path ? path : []} color="#ffb700" />
         }
 
-        <UserMarker />
       </MapContainer>
     );
   },
